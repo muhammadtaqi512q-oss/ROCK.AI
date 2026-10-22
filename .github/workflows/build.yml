@@ -19,8 +19,33 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Setup Android SDK Environment Manually
+        run: |
+          # Create Android SDK directory structure
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          
+          # Download official Command Line Tools (latest version)
+          cd $HOME/android-sdk/cmdline-tools
+          curl -s https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o cmdline-tools.zip
+          unzip -q cmdline-tools.zip
+          mv cmdline-tools latest
+          rm cmdline-tools.zip
+          
+          # Export Environment Variables
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
+
+      - name: Accept Licenses & Install Android Platforms
+        run: |
+          export ANDROID_HOME=$HOME/android-sdk
+          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
+          
+          # Accept licenses automatically
+          yes | sdkmanager --licenses || true
+          
+          # Install required build tools and platforms
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -34,27 +59,35 @@ jobs:
           # 1. Create Cordova project
           cordova create app com.stickman11.velora "TINY FISHING"
           
-          # 2. Copy All Web Source Assets (HTML, JS, CSS, PNG files & folders)
-          # Copy root-level web files safely
+          # 2. Clear default Cordova boilerplate files
+          rm -rf app/www/*
+          
+          # 3. Copy ALL root web files safely into www/
           cp *.html app/www/ 2>/dev/null || true
           cp *.js app/www/ 2>/dev/null || true
           cp *.css app/www/ 2>/dev/null || true
           cp *.png app/www/ 2>/dev/null || true
+          cp *.jpg app/www/ 2>/dev/null || true
           
-          # Copy your game directories/assets
-          cp -r characters gun bg stage app/www/ 2>/dev/null || true
+          # Also copy game asset directories if they exist
+          for dir in characters gun bg stage; do
+            if [ -d "$dir" ]; then
+              cp -r "$dir" app/www/
+            fi
+          done
           
-          # 3. Add Custom Icon if present
+          # 4. Add Custom Icon if present
           if [ -f "icon.png" ]; then
             cp icon.png app/www/icon.png
             sed -i '/<\/widget>/i \    <icon src="www/icon.png" \/>' app/config.xml
           fi
           
-          # 4. Set Landscape Orientation in config.xml
+          # 5. Set Landscape Orientation in config.xml
           sed -i '/<\/widget>/i \    <preference name="Orientation" value="landscape" \/>' app/config.xml
 
-          # 5. Add Android Platform & Build
+          # 6. Add Android Platform & Build
           cd app
+          export ANDROID_HOME=$HOME/android-sdk
           cordova platform add android
           
           # Fix Gradle executable permissions
