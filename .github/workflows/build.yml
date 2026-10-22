@@ -34,8 +34,14 @@ jobs:
           # 1. Create Cordova project
           cordova create app com.stickman11.velora "TINY FISHING"
           
-          # 2. Copy Web Source Assets
-          cp -r index.html app/www/ 2>/dev/null || true
+          # 2. Copy All Web Source Assets (HTML, JS, CSS, PNG files & folders)
+          # Copy root-level web files safely
+          cp *.html app/www/ 2>/dev/null || true
+          cp *.js app/www/ 2>/dev/null || true
+          cp *.css app/www/ 2>/dev/null || true
+          cp *.png app/www/ 2>/dev/null || true
+          
+          # Copy your game directories/assets
           cp -r characters gun bg stage app/www/ 2>/dev/null || true
           
           # 3. Add Custom Icon if present
